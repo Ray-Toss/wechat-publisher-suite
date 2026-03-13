@@ -11,9 +11,18 @@
 - **🚀 一键发布**：直接发布到公众号草稿箱，无需手动操作
 
 ## 🚀 快速开始
-### 1. 安装技能
-将本文件夹放到OpenClaw的技能目录下：
+### 方式一：一键安装（推荐）
 ```bash
+# 直接运行此命令即可完成安装
+bash <(curl -fsSL https://raw.githubusercontent.com/Ray-Toss/wechat-publisher-suite/main/install.sh)
+```
+
+### 方式二：手动安装
+```bash
+# 克隆仓库
+git clone https://github.com/Ray-Toss/wechat-publisher-suite.git
+
+# 移动到OpenClaw技能目录
 mv wechat-publisher-suite ~/.openclaw/workspace/skills/
 ```
 
