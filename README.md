@@ -11,13 +11,22 @@
 - **🚀 一键发布**：直接发布到公众号草稿箱，无需手动操作
 
 ## 🚀 快速开始
-### 方式一：一键安装（推荐）
+
+### 前置准备：微信公众号配置（必须先做）
+在安装技能之前，请先完成微信公众号的准备工作：
+1. **注册公众号**：访问 https://mp.weixin.qq.com/ 注册并认证公众号（服务号/订阅号均可）
+2. **获取开发者凭证**：在公众号后台 -> 开发 -> 基本配置，获取 `AppID` 和 `AppSecret`
+3. **配置IP白名单**：在同一个页面，将运行OpenClaw的服务器公网IP添加到IP白名单中
+4. **开通接口权限**：确保公众号拥有素材管理、草稿箱管理等接口权限
+
+### 1. 安装技能
+#### 方式一：一键安装（推荐）
 ```bash
 # 直接运行此命令即可完成安装
 bash <(curl -fsSL https://raw.githubusercontent.com/Ray-Toss/wechat-publisher-suite/main/install.sh)
 ```
 
-### 方式二：手动安装
+#### 方式二：手动安装
 ```bash
 # 克隆仓库
 git clone https://github.com/Ray-Toss/wechat-publisher-suite.git
@@ -33,16 +42,10 @@ mv wechat-publisher-suite ~/.openclaw/workspace/skills/
 # 申请地址: https://tavily.com/
 export TAVILY_API_KEY="your-tavily-api-key"
 
-# 微信公众号配置
-# 在微信公众平台后台获取：开发 -> 基本配置
-export WECHAT_APPID="your-wechat-appid"
-export WECHAT_APPSECRET="your-wechat-appsecret"
+# 微信公众号配置（刚才在公众号后台获取的）
+export WECHAT_APPID="你的公众号AppID"
+export WECHAT_APPSECRET="你的公众号AppSecret"
 ```
-
-### ⚠️ 重要提示
-必须在微信公众平台后台配置IP白名单：
-- 路径：开发 -> 基本配置 -> IP白名单
-- 添加运行OpenClaw的服务器公网IP地址
 
 ## 🎯 使用方式
 **只需要和OpenClaw对话即可**：
