@@ -1,81 +1,53 @@
 ---
 name: wechat-publisher-suite
-description: 微信公众号全链路发布套件 - 从主题选题、内容生成、格式优化到一键发布到草稿箱的完整工作流，支持技术文章和热点文章双模式，自动配图、自动排版，开箱即用。Use when: 用户需要发布微信公众号文章、创建公众号内容、一键生成公众号草稿。
+description: 微信公众号全链路发布技能 - 从主题选题、内容生成、格式优化到一键发布到草稿箱的完整工作流，支持技术文章和热点文章双模式，自动配图、自动排版，开箱即用。Use when: 用户需要发布微信公众号文章、创建公众号内容、生成公众号草稿、将文章发布到微信公众号。
 ---
 
-# 微信公众号发布套件（WeChat Publisher Suite）
+# 微信公众号发布技能（WeChat Publisher Skill）
 
-全链路微信公众号内容生产和发布工具，实现从主题到草稿的一键式体验。
+专为OpenClaw设计的微信公众号内容生产全链路技能，实现从主题到草稿的一键式体验。
 
 ## 核心能力
 - 🔍 **智能选题**：自动搜索热点和行业数据，推荐优质选题
 - ✍️ **内容生成**：双模式支持（技术文章/热点文章），自动生成高质量内容
 - 🎨 **格式优化**：自动适配微信公众号排版规范，生成标准HTML格式
-- 🖼️ **智能配图**：优先搜索真实图片，文生图补充，自动上传到微信素材库
+- 🖼️ **智能配图**：优先搜索真实图片，自动上传到微信素材库
 - 🚀 **一键发布**：直接发布到公众号草稿箱，无需手动操作
 
 ## 触发场景
 - "帮我写一篇关于XX的公众号文章"
 - "发布这篇文章到微信公众号"
 - "生成一个公众号热点文章"
+- "把这篇内容转为公众号格式"
 - "公众号一键发布"
 
 ## 环境配置
 ### 必需的环境变量
 ```bash
-# Tavily API 用于搜索热点和图片
+# Tavily API Key - 用于搜索热点和图片
+# 申请地址: https://tavily.com/
 export TAVILY_API_KEY="your-tavily-api-key"
 
-# 微信API Key 用于公众号发布
-export WECHAT_API_KEY="your-wechat-api-key"
-
-# OpenAI API 用于内容生成（可选，使用系统默认时不需要）
-export OPENAI_API_KEY="your-openai-api-key"
+# 微信公众号配置
+# 在微信公众平台后台获取：开发 -> 基本配置
+export WECHAT_APPID="your-wechat-appid"
+export WECHAT_APPSECRET="your-wechat-appsecret"
 ```
 
-### 获取API Key
-- Tavily API: https://tavily.com/
-- 微信API: https://wx.limyai.com/
-
-## 使用方法
-### 首次使用：一键配置
-```bash
-# 运行配置向导，自动完成环境配置
-python scripts/setup.py
-```
-
-### 基础用法（一键发布）
-```bash
-# 自动搜索热点并生成文章发布到草稿箱
-python scripts/publish.py
-
-# 指定主题生成文章
-python scripts/publish.py --topic "智能座舱大模型应用"
-
-# 指定文章类型（tech/hot）
-python scripts/publish.py --topic "AI大模型最新进展" --type tech
-
-# 仅生成内容不发布
-python scripts/publish.py --topic "自动驾驶技术" --output ./article.html
-```
-
-### 完整参数说明
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `--topic <主题>` | 文章主题，不指定则自动搜索热点 | 自动搜索 |
-| `--type <类型>` | 文章类型：`tech`(技术文章)/`hot`(热点文章) | 自动识别 |
-| `--output <路径>` | 文章保存路径，不指定则直接发布 | 直接发布 |
-| `--images <数量>` | 配图数量 | 3 |
-| `--appid <appid>` | 指定公众号APPID，不指定则使用第一个账号 | 自动选择 |
-| `--draft` | 仅保存到草稿，不自动发布 | true |
+### ⚠️ 重要配置
+必须在微信公众平台后台配置IP白名单：
+- 路径：开发 -> 基本配置 -> IP白名单
+- 添加运行OpenClaw的服务器公网IP地址
 
 ## 工作流程
+用户提出需求后，自动完成以下流程：
 ```
-1. 选题阶段：搜索相关资讯、数据、案例
-2. 内容生成：根据类型选择对应模板生成文章
-3. 配图阶段：搜索相关图片，自动上传到微信素材库
-4. 格式转换：转换为公众号兼容的HTML格式，优化排版
-5. 发布阶段：调用微信API创建草稿，返回预览链接
+1. 需求理解：分析用户需求，确定文章主题和类型
+2. 信息搜集：使用Tavily API搜索相关资讯、数据、案例
+3. 内容生成：根据类型选择对应模板生成高质量文章
+4. 图片处理：搜索相关图片，自动上传到微信素材库
+5. 格式转换：转换为公众号兼容的HTML格式，优化排版
+6. 草稿发布：调用微信官方API创建草稿，返回预览链接
 ```
 
 ## 文章结构
@@ -103,22 +75,23 @@ python scripts/publish.py --topic "自动驾驶技术" --output ./article.html
 - 自动生成分隔线、引用块等元素
 
 ## 最佳实践
-1. 技术类文章建议使用`--type tech`获得更专业的内容
-2. 热点类文章建议使用`--type hot`获得更时效性的内容
-3. 发布前可以使用`--output`参数先预览内容
-4. 配图优先使用搜索到的真实图片，更有说服力
+1. 技术类需求会自动使用技术文章模式，内容更专业严谨
+2. 热点类需求会自动使用热点文章模式，内容更具时效性
+3. 发布前会自动校验格式和内容，确保符合微信规范
+4. 生成的草稿可以直接在微信公众平台预览和发布
 
 ## 相关脚本
 - `scripts/content_generator.py` - 内容生成模块
 - `scripts/format_converter.py` - 格式转换模块
 - `scripts/image_processor.py` - 图片处理模块
-- `scripts/wechat_api.py` - 微信API封装
+- `scripts/wechat_api.py` - 微信官方API封装
 
 ## 错误处理
 - API_KEY未配置：提示用户设置环境变量
-- 公众号未授权：提示用户在wx.limyai.com授权账号
+- 公众号未授权：提示用户检查APPID和APPSECRET
+- IP白名单未配置：提示用户在公众号后台添加服务器IP
 - 图片上传失败：自动重试，或跳过图片使用默认配图
 - 内容生成失败：降级使用简化模式生成内容
 
 ## 开源地址
-GitHub: https://github.com/your-repo/wechat-publisher-suite
+GitHub: https://github.com/Ray-Toss/wechat-publisher-suite
