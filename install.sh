@@ -101,8 +101,10 @@ if [[ "$CONFIG_NOW" =~ ^[Yy]$ ]] || [[ -z "$CONFIG_NOW" ]]; then
         fi
         echo -e "${GREEN}✅ 配置已保存到 ~/.bashrc${NC}"
         echo ""
-        echo -e "${YELLOW}💡 请运行以下命令使配置生效：${NC}"
-        echo "   source ~/.bashrc"
+        echo -e "${YELLOW}💡 配置生效方法：${NC}"
+        echo "   1. 运行命令使当前终端配置生效：source ~/.bashrc"
+        echo "   2. 重启OpenClaw服务加载新配置：openclaw gateway restart"
+        echo "   3. 重启后即可正常使用技能"
     else
         echo -e "${YELLOW}⚠️  未输入Tavily API Key，已跳过配置写入${NC}"
     fi
