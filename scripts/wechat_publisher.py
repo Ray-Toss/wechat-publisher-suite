@@ -51,51 +51,76 @@ class WeChatPublisher:
     
     def markdown_to_wechat_html(self, markdown_content: str) -> str:
         """将Markdown转换为微信公众号兼容的HTML格式"""
+        html_lines = []
+        
         # 处理代码块
-        def replace_code_block(match):
-            code = match.group(1).strip()
-            code = code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            code = code.replace('\n', '<br>')
-            return f'<pre><code>{code}</code></pre>'
+        in_code_block = False
+        code_lines = []
+        code_lang = ""
         
-        html = re.sub(r'```([\s\S]*?)```', replace_code_block, markdown_content)
-        
-        # 处理标题
-        html = re.sub(r'^# (.*?)$', r'<h1>\1</h1>', html, flags=re.MULTILINE)
-        html = re.sub(r'^## (.*?)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
-        html = re.sub(r'^### (.*?)$', r'<h3>\1</h3>', html, flags=re.MULTILINE)
-        
-        # 处理粗体和斜体
-        html = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', html)
-        html = re.sub(r'\*(.*?)\*', r'<em>\1</em>', html)
-        
-        # 处理行内代码
-        html = re.sub(r'`(.*?)`', r'<code>\1</code>', html)
-        
-        # 处理链接
-        html = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2">\1</a>', html)
-        
-        # 处理列表
-        html = re.sub(r'^- (.*?)$', r'<p>• \1</p>', html, flags=re.MULTILINE)
-        html = re.sub(r'^(\d+)\. (.*?)$', r'<p>\1. \2</p>', html, flags=re.MULTILINE)
-        
-        # 处理引用
-        html = re.sub(r'^> (.*?)$', r'<blockquote>\1</blockquote>', html, flags=re.MULTILINE)
-        
-        # 处理普通段落
-        lines = html.split('\n')
-        processed_lines = []
+        lines = markdown_content.split('\n')
         for line in lines:
-            line = line.strip()
-            if not line:
+            # 处理代码块边界
+            if line.startswith('```'):
+                if not in_code_block:
+                    in_code_block = True
+                    code_lang = line[3:].strip()
+                    code_lines = []
+                else:
+                    in_code_block = False
+                    # 格式化代码块
+                    code_content = '<br>'.join([line.replace(' ', '&nbsp;') for line in code_lines])
+                    html_lines.append(f'<pre style="background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: Consolas, monospace; font-size: 14px; line-height: 1.6;">{code_content}</pre>')
                 continue
-            # 已经是HTML标签的直接保留
-            if line.startswith(('<h', '<p', '<pre', '<code', '<blockquote', '<strong', '<em', '<a')):
-                processed_lines.append(line)
+                
+            if in_code_block:
+                code_lines.append(line)
+                continue
+                
+            if not line.strip():
+                continue
+                
+            # 处理标题
+            if line.startswith('# '):
+                html_lines.append(f'<h1 style="font-size: 24px; font-weight: bold; color: #333; margin: 30px 0 15px 0; text-align: center;">{line[2:].strip()}</h1>')
+            elif line.startswith('## '):
+                html_lines.append(f'<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">{line[3:].strip()}</h2>')
+            elif line.startswith('### '):
+                html_lines.append(f'<h3 style="font-size: 17px; font-weight: bold; color: #34495e; margin: 20px 0 10px 0;">{line[4:].strip()}</h3>')
+            # 处理无序列表
+            elif line.startswith('- '):
+                content = line[2:].strip()
+                # 处理行内格式
+                content = re.sub(r'\*\*(.*?)\*\*', r'<strong style="font-weight: bold;">\1</strong>', content)
+                content = re.sub(r'`(.*?)`', r'<code style="background-color: #f6f8fa; padding: 2px 4px; border-radius: 3px; font-family: Consolas, monospace; font-size: 13px; color: #e74c3c;">\1</code>', content)
+                html_lines.append(f'<p style="margin: 8px 0 8px 20px; text-indent: -1em;">•&nbsp;&nbsp;{content}</p>')
+            # 处理有序列表
+            elif re.match(r'^(\d+)\. ', line):
+                match = re.match(r'^(\d+)\. (.*)$', line)
+                if match:
+                    num = match.group(1)
+                    content = match.group(2).strip()
+                    # 处理行内格式
+                    content = re.sub(r'\*\*(.*?)\*\*', r'<strong style="font-weight: bold;">\1</strong>', content)
+                    content = re.sub(r'`(.*?)`', r'<code style="background-color: #f6f8fa; padding: 2px 4px; border-radius: 3px; font-family: Consolas, monospace; font-size: 13px; color: #e74c3c;">\1</code>', content)
+                    html_lines.append(f'<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">{num}.&nbsp;&nbsp;{content}</p>')
+            # 处理引用
+            elif line.startswith('> '):
+                content = line[2:].strip()
+                html_lines.append(f'<blockquote style="border-left: 4px solid #3498db; padding: 10px 15px; margin: 15px 0; background-color: #f8f9fa; color: #666; font-style: italic;">{content}</blockquote>')
+            # 处理普通段落
             else:
-                processed_lines.append(f'<p>{line}</p>')
+                # 处理行内格式
+                line = re.sub(r'\*\*(.*?)\*\*', r'<strong style="font-weight: bold;">\1</strong>', line)
+                line = re.sub(r'`(.*?)`', r'<code style="background-color: #f6f8fa; padding: 2px 4px; border-radius: 3px; font-family: Consolas, monospace; font-size: 13px; color: #e74c3c;">\1</code>', line)
+                line = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2" style="color: #3498db; text-decoration: none;">\1</a>', line)
+                html_lines.append(f'<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">{line}</p>')
         
-        html = '\n'.join(processed_lines)
+        # 添加全局样式容器
+        html = f'<div style="max-width: 677px; margin: 0 auto; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;">'
+        html += '\n'.join(html_lines)
+        html += '</div>'
+        
         return html
     
     def publish_draft(self, title: str, content: str, thumb_media_id: str = "") -> str:
