@@ -26,17 +26,26 @@ def main():
     publisher = WeChatPublisher()
     image_processor = ImageProcessor(wechat_publisher=publisher)
     
-    # 生成内容
-    title, content = generator.generate_article(topic)
+    # 1. 生成文章内容（纯文本，不含图片）
+    title, md_content = generator.generate_article(topic)
     print(f'✅ 内容生成完成，标题：{title}')
     
-    # 智能插入配图
-    print('🖼️  正在为文章添加配图...')
-    content_with_images = image_processor.insert_images_into_article(content, topic)
+    # 2. 生成配图
+    print('🖼️  正在生成配图...')
+    image_paths = image_processor.generate_article_images(topic, count=3)
     
-    # 发布到草稿箱
+    # 3. 转换为HTML并插入图片（自动上传到微信素材库获取URL）
+    print('🔄 正在转换格式并插入配图...')
+    html_content = publisher.markdown_to_wechat_html(md_content, image_paths)
+    
+    # 4. 发布到草稿箱
     print('🚀 正在发布到微信公众号草稿箱...')
-    media_id = publisher.publish_draft(title, content_with_images)
+    media_id = publisher.publish_draft(title, html_content)
+    
+    # 清理临时图片
+    for img_path in image_paths:
+        if os.path.exists(img_path):
+            os.remove(img_path)
     
     print(f'🎉 发布成功！')
     print(f'📄 草稿ID：{media_id}')

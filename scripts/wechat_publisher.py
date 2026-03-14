@@ -29,17 +29,48 @@ class WeChatPublisher:
             raise Exception(f'获取access_token失败: {result}')
         return result['access_token']
     
-    def upload_image(self, image_path: str) -> str:
+    def upload_image(self, image_path: str, is_permanent: bool = True) -> str:
         """上传图片到微信素材库，返回media_id"""
-        url = f'https://api.weixin.qq.com/cgi-bin/material/add_material?access_token={self.access_token}&type=image'
-        files = {'media': open(image_path, 'rb')}
-        data = {'description': json.dumps({'title': '图片', 'introduction': '文章图片'}, ensure_ascii=False)}
-        response = requests.post(url, files=files, data=data, timeout=30)
+        if is_permanent:
+            # 上传永久素材
+            url = f'https://api.weixin.qq.com/cgi-bin/material/add_material?access_token={self.access_token}&type=image'
+            files = {'media': open(image_path, 'rb')}
+            data = {'description': json.dumps({'title': '文章配图', 'introduction': '文章配图'}, ensure_ascii=False)}
+            response = requests.post(url, files=files, data=data, timeout=30)
+        else:
+            # 上传临时素材
+            url = f'https://api.weixin.qq.com/cgi-bin/media/upload?access_token={self.access_token}&type=image'
+            files = {'media': open(image_path, 'rb')}
+            response = requests.post(url, files=files, timeout=30)
+        
         response.encoding = 'utf-8'
         result = response.json()
         if 'media_id' not in result:
             raise Exception(f'上传图片失败: {result}')
         return result['media_id']
+    
+    def get_image_url(self, media_id: str) -> str:
+        """根据media_id获取图片URL"""
+        url = f"https://api.weixin.qq.com/cgi-bin/material/get_material?access_token={self.access_token}"
+        data = {"media_id": media_id}
+        response = requests.post(url, json=data, timeout=10, stream=True)
+        
+        # 从响应头中获取图片URL
+        if 'X-Cdn-Url' in response.headers:
+            return response.headers['X-Cdn-Url']
+        elif 'Url' in response.headers:
+            return response.headers['Url']
+        else:
+            # 尝试从响应内容中提取
+            try:
+                result = response.json()
+                if 'url' in result:
+                    return result['url']
+            except:
+                pass
+        
+        # 如果无法获取URL，返回占位图
+        return "https://mmbiz.qpic.cn/mmbiz_jpg/OdWiahysdlUSAGzcoiaibxcBxnJDViaBVvXgqia7u7MPfvWb59Libq82I2kSZQUEicrRUVf6BIWffZqHeico1clESqAZb5pkopKxCibBficn5PY4j9J6s/0"
     
     def get_default_thumb_media_id(self) -> str:
         """获取默认的封面图media_id"""
@@ -53,7 +84,7 @@ class WeChatPublisher:
             return result['item'][0]['media_id']
         raise Exception('素材库中没有图片，请先上传至少一张图片作为封面')
     
-    def markdown_to_wechat_html(self, markdown_content: str) -> str:
+    def markdown_to_wechat_html(self, markdown_content: str, image_paths: List[str] = None) -> str:
         """将Markdown转换为微信公众号兼容的HTML格式"""
         html_lines = []
         
@@ -120,8 +151,30 @@ class WeChatPublisher:
                 line = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2" style="color: #3498db; text-decoration: none;">\1</a>', line)
                 html_lines.append(f'<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">{line}</p>')
         
-        # 合并内容，确保没有Unicode转义
-        html = '\n'.join(html_lines)
+        # 插入配图
+        if image_paths and len(image_paths) > 0:
+            # 每3个段落插入一张图片
+            insert_positions = [3, 7, 11]
+            for i, img_path in enumerate(image_paths[:3]):
+                if i < len(insert_positions) and insert_positions[i] < len(html_lines):
+                    try:
+                        # 上传图片到微信素材库
+                        media_id = self.upload_image(img_path)
+                        img_url = self.get_image_url(media_id)
+                        # 插入图片
+                        image_html = f'''<p style="text-align: center; margin: 25px 0;">
+<img src="{img_url}" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+</p>'''
+                        html_lines.insert(insert_positions[i], image_html)
+                    except Exception as e:
+                        print(f'插入图片失败: {e}')
+                        continue
+        
+        # 添加全局样式容器
+        html = f'<div style="max-width: 677px; margin: 0 auto; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif;">'
+        html += '\n'.join(html_lines)
+        html += '</div>'
+        
         return html
     
     def publish_draft(self, title: str, content: str, thumb_media_id: str = "") -> str:
@@ -157,6 +210,7 @@ def main():
     # 测试功能
     publisher = WeChatPublisher()
     
+    # 测试Markdown转换
     test_md = """# OpenClaw技能开发最佳实践
 
 随着AI Agent技术的快速发展，OpenClaw作为开源的Agent运行框架，成为众多开发者构建智能助手的首选平台。
@@ -184,7 +238,6 @@ def handle_request(params, context):
     print('🔄 正在转换Markdown到微信HTML格式...')
     html_content = publisher.markdown_to_wechat_html(test_md)
     print(f'✅ 转换完成，HTML长度: {len(html_content)}')
-    print(f'HTML预览: {html_content[:300]}...')
     
     print('🚀 正在发布到草稿箱...')
     media_id = publisher.publish_draft(
