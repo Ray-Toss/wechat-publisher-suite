@@ -23,6 +23,7 @@ class WeChatPublisher:
         """获取access_token"""
         url = f'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={self.appid}&secret={self.appsecret}'
         response = requests.get(url, timeout=10)
+        response.encoding = 'utf-8'
         result = response.json()
         if 'access_token' not in result:
             raise Exception(f'获取access_token失败: {result}')
@@ -32,8 +33,9 @@ class WeChatPublisher:
         """上传图片到微信素材库，返回media_id"""
         url = f'https://api.weixin.qq.com/cgi-bin/material/add_material?access_token={self.access_token}&type=image'
         files = {'media': open(image_path, 'rb')}
-        data = {'description': json.dumps({'title': '图片', 'introduction': '文章图片'})}
+        data = {'description': json.dumps({'title': '图片', 'introduction': '文章图片'}, ensure_ascii=False)}
         response = requests.post(url, files=files, data=data, timeout=30)
+        response.encoding = 'utf-8'
         result = response.json()
         if 'media_id' not in result:
             raise Exception(f'上传图片失败: {result}')
@@ -42,8 +44,10 @@ class WeChatPublisher:
     def get_default_thumb_media_id(self) -> str:
         """获取默认的封面图media_id"""
         url = f'https://api.weixin.qq.com/cgi-bin/material/batchget_material?access_token={self.access_token}'
+        headers = {'Content-Type': 'application/json; charset=utf-8'}
         data = {"type": "image", "offset": 0, "count": 1}
-        response = requests.post(url, json=data, timeout=10)
+        response = requests.post(url, headers=headers, data=json.dumps(data, ensure_ascii=False).encode('utf-8'), timeout=10)
+        response.encoding = 'utf-8'
         result = response.json()
         if result.get('item'):
             return result['item'][0]['media_id']
@@ -116,11 +120,8 @@ class WeChatPublisher:
                 line = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2" style="color: #3498db; text-decoration: none;">\1</a>', line)
                 html_lines.append(f'<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">{line}</p>')
         
-        # 添加全局样式容器
-        html = f'<div style="max-width: 677px; margin: 0 auto; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;">'
-        html += '\n'.join(html_lines)
-        html += '</div>'
-        
+        # 合并内容，确保没有Unicode转义
+        html = '\n'.join(html_lines)
         return html
     
     def publish_draft(self, title: str, content: str, thumb_media_id: str = "") -> str:
@@ -133,6 +134,7 @@ class WeChatPublisher:
             thumb_media_id = self.get_default_thumb_media_id()
         
         url = f'https://api.weixin.qq.com/cgi-bin/draft/add?access_token={self.access_token}'
+        headers = {'Content-Type': 'application/json; charset=utf-8'}
         data = {
             "articles": [
                 {
@@ -142,7 +144,10 @@ class WeChatPublisher:
                 }
             ]
         }
-        response = requests.post(url, json=data, timeout=30)
+        # 关键：使用ensure_ascii=False确保中文不被转义，然后编码为utf-8
+        json_data = json.dumps(data, ensure_ascii=False).encode('utf-8')
+        response = requests.post(url, headers=headers, data=json_data, timeout=30)
+        response.encoding = 'utf-8'
         result = response.json()
         if 'media_id' not in result:
             raise Exception(f'发布草稿失败: {result}')
@@ -179,6 +184,7 @@ def handle_request(params, context):
     print('🔄 正在转换Markdown到微信HTML格式...')
     html_content = publisher.markdown_to_wechat_html(test_md)
     print(f'✅ 转换完成，HTML长度: {len(html_content)}')
+    print(f'HTML预览: {html_content[:300]}...')
     
     print('🚀 正在发布到草稿箱...')
     media_id = publisher.publish_draft(
