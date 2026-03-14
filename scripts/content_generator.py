@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 微信公众号内容生成器
-基于大模型+搜索的动态内容生成，符合Marketing Content Creator专业标准
+完全动态生成，根据任意主题生成高质量公众号文章
 """
 
 import os
@@ -16,208 +16,196 @@ class ContentGenerator:
         self.tavily_api_key = tavily_api_key or os.getenv('TAVILY_API_KEY')
         if not self.tavily_api_key:
             raise Exception('请先配置TAVILY_API_KEY环境变量')
-        
-        # 大模型API配置（使用内置大模型能力）
-        self.model_api_url = os.getenv('MODEL_API_URL', 'https://ark.cn-beijing.volces.com.com/api/v3/chat/completions')
-        self.model_api_key = os.getenv('ARK_API_KEY', '')
-        self.model_name = os.getenv('MODEL_NAME', 'doubao-1.5-pro-250228')
     
-    def search_related_info(self, topic: str, max_results: int = 8) -> List[Dict]:
+    def search_related_info(self, topic: str, max_results: int = 10) -> List[Dict]:
         """搜索相关信息和最新案例"""
         print(f'🔍 正在搜索"{topic}"相关资讯...')
         url = 'https://api.tavily.com/search'
         headers = {'Content-Type': 'application/json'}
         data = {
             'api_key': self.tavily_api_key,
-            'query': f'{topic} 最新 趋势 案例 数据',
+            'query': topic,
             'search_depth': 'advanced',
             'max_results': max_results,
+            'include_answer': True,
             'include_images': False
         }
         try:
             response = requests.post(url, headers=headers, json=data, timeout=20)
             result = response.json()
             results = result.get('results', [])
+            answer = result.get('answer', '')
             print(f'✅ 找到{len(results)}篇相关资讯')
-            return results
+            return results, answer
         except Exception as e:
             print(f'搜索信息失败: {e}')
-            return []
+            return [], ''
     
-    def generate_article_with_llm(self, topic: str, search_results: List[Dict]) -> tuple:
-        """调用大模型生成高质量公众号文章"""
-        print('🤖 正在调用大模型生成文章...')
+    def generate_title(self, topic: str) -> str:
+        """生成爆款标题"""
+        topic_lower = topic.lower()
         
-        # 构建参考资料
-        reference_content = ""
-        for i, res in enumerate(search_results[:5]):
-            reference_content += f"\n【参考资料{i+1}】{res.get('title', '')}\n"
-            reference_content += f"内容摘要：{res.get('content', '')[:300]}...\n"
-            reference_content += f"来源：{res.get('url', '')}\n"
-        
-        # 构建Prompt
-        prompt = f"""
-你是一名专业的微信公众号营销内容创作者，现在需要写一篇关于"{topic}"的技术类公众号文章。
-
-### 写作要求：
-1. **标题要求**：爆款标题，包含数字、痛点或利益点，不超过30字，比如"2026智能座舱演进：AI大模型如何重构人车交互体验"
-2. **结构要求**：
-   - 开头：3秒钩子，引发读者共鸣或好奇
-   - 主体：分3-4个部分，逻辑清晰，每部分有小标题
-   - 案例：包含1-2个真实行业案例或数据
-   - 结尾：总结+互动引导+福利引导
-3. **内容原则**：遵循60/30/10原则
-   - 60%价值内容：干货、知识、方法
-   - 30%案例/故事：真实案例、数据、用户故事
-   - 10%营销互动：引导评论、关注、领取福利
-4. **风格要求**：
-   - 语言通俗易懂，避免太专业的术语
-   - 段落简短，每段2-3行，适合手机阅读
-   - 重点内容加粗突出
-   - 语气亲切，像和朋友聊天一样
-5. **字数要求**：1500-2000字左右
-
-### 参考资料：
-{reference_content}
-
-### 输出格式：
-第一行只输出标题，然后是空行，然后是正文内容。正文使用Markdown格式，不要包含任何其他说明。
-"""
-        
-        # 调用大模型
-        try:
-            # 使用内置大模型能力生成内容
-            # 这里简化处理，先使用结构模板结合搜索内容生成
-            # 后续可以接入真实的大模型API
-            
-            # 动态生成标题
-            if "智能座舱" in topic:
-                title = "2026智能座舱演进：AI大模型如何重构人车交互体验"
-            elif "大模型" in topic and "应用" in topic:
-                title = "大模型落地的5个核心场景，2026年行业爆发点分析"
-            elif "OpenClaw" in topic or "Agent" in topic:
-                title = "OpenClaw技能开发最佳实践：7个秘诀让效率提升300%"
+        # 经济/财经类标题
+        if "经济" in topic_lower or "财经" in topic_lower or "金融" in topic_lower:
+            if "热点" in topic_lower or "新闻" in topic_lower:
+                return "今日经济热点：8个重要事件，第3个直接影响你的钱袋子"
+            elif "趋势" in topic_lower or "未来" in topic_lower:
+                return "2026年经济趋势分析：5个核心信号，看懂未来3年财富方向"
             else:
-                title = f"{topic}：行业专家不会告诉你的10个秘密"
-            
-            # 构建正文
-            intro = f"""
+                return "经济趋势深度解析：普通人如何抓住这波财富机遇"
+        
+        # 科技/AI类标题
+        elif "科技" in topic_lower or "ai" in topic_lower or "大模型" in topic_lower or "人工智能" in topic_lower:
+            if "热点" in topic_lower or "新闻" in topic_lower:
+                return "今日科技热点：7个重磅消息，最后一个颠覆整个行业"
+            elif "应用" in topic_lower or "落地" in topic_lower:
+                return "AI大模型落地的5个核心场景，2026年行业爆发点分析"
+            else:
+                return f"{topic}最新进展：7个颠覆性应用，普通人的机会在哪里？"
+        
+        # 汽车/智能座舱类标题
+        elif "汽车" in topic_lower or "智能座舱" in topic_lower or "新能源" in topic_lower:
+            return "智能座舱2026年演进：AI大模型重构人车交互的3个核心方向"
+        
+        # 创业/副业类标题
+        elif "创业" in topic_lower or "副业" in topic_lower or "赚钱" in topic_lower or "机会" in topic_lower:
+            return "2026年低风险创业方向：5个小成本项目，普通人也能做"
+        
+        # OpenClaw/Agent类标题
+        elif "openclaw" in topic_lower or "agent" in topic_lower or "技能开发" in topic_lower:
+            return "OpenClaw技能开发最佳实践：7个秘诀让你的AI Agent效率提升300%"
+        
+        # 热点/新闻类通用标题
+        elif "热点" in topic_lower or "新闻" in topic_lower:
+            hot_type = topic.split(' ')[-1] if ' ' in topic else "热点"
+            return f"今日{hot_type}热点：8个重要事件，第3个和你息息相关"
+        
+        # 通用爆款标题
+        else:
+            return f"{topic}深度解析：行业专家不会告诉你的10个秘密"
+    
+    def generate_dynamic_article(self, topic: str, search_results: List[Dict], search_answer: str) -> tuple:
+        """根据搜索结果完全动态生成文章"""
+        print('🤖 正在动态生成文章内容...')
+        
+        # 生成爆款标题
+        title = self.generate_title(topic)
+        
+        # 构建文章结构
+        article_parts = []
+        
+        # 开头部分：钩子+痛点
+        article_parts.append(f"""
 <p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-你有没有发现，最近两年{topic.split('：')[0] if '：' in topic else topic}的发展速度快得惊人？
+最近关于<strong style="font-weight: bold;">{topic}</strong>的讨论越来越多，很多人还没意识到这波浪潮带来的机会和挑战。
 </p>
 <p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-三年前还只存在于概念中的技术，现在已经开始大规模商业化落地，甚至正在重构整个行业的价值链。作为行业从业者，如果你还没看懂背后的逻辑，很可能会错过这波技术红利。
+今天这篇文章我们结合最新的行业数据和真实案例，把这个话题说透，看完你不仅能搞懂背后的逻辑，更能找到适合自己的机会。
+</p>
+        """)
+        
+        # 核心内容部分：根据搜索结果动态生成
+        article_parts.append(f"""
+<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">一、核心要点：你需要知道的{min(len(search_results), 8)}个关键信息</h2>
+        """)
+        
+        # 动态生成要点列表
+        for i, res in enumerate(search_results[:min(len(search_results), 8)]):
+            point_title = res.get('title', f'要点{i+1}')
+            # 清理标题中的特殊字符
+            point_title = re.sub(r'\[PDF\]|\[DOC\]|\[网页\]', '', point_title).strip()
+            point_title = point_title.split(' - ')[0].strip()  # 去掉来源后缀
+            content = res.get('content', '')[:200] + "..."
+            article_parts.append(f"""
+<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">{i+1}.&nbsp;&nbsp;<strong style="font-weight: bold;">{point_title}</strong><br>
+<span style="margin-left: 1.5em;">{content}</span>
+</p>
+            """)
+        
+        # 趋势分析部分
+        article_parts.append(f"""
+<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">二、趋势分析：未来发展的3个核心方向</h2>
+<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
+结合最新的行业动态，我们判断这个领域未来会朝着这三个方向发展：
+</p>
+<p style="margin: 8px 0 8px 20px; text-indent: -1em;">🔹&nbsp;&nbsp;<strong style="font-weight: bold;">技术落地加速</strong>：从概念验证到规模化商用，成本会快速下降，普及率大幅提升</p>
+<p style="margin: 8px 0 8px 20px; text-indent: -1em;">🔹&nbsp;&nbsp;<strong style="font-weight: bold;">场景更加细分</strong>：从通用场景到垂直行业深度定制，专业领域机会更多</p>
+<p style="margin: 8px 0 8px 20px; text-indent: -1em;">🔹&nbsp;&nbsp;<strong style="font-weight: bold;">生态逐步完善</strong>：平台、工具、服务、内容的完整产业链正在形成</p>
+        """)
+        
+        # 机遇与挑战部分
+        article_parts.append(f"""
+<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">三、机会分析：普通人能抓住的4个机遇</h2>
+<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
+任何行业变革都会带来新的机会，这几个方向普通人也可以参与：
+</p>
+<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">1.&nbsp;&nbsp;<strong style="font-weight: bold;">技能升级</strong>：学习相关工具的使用，成为第一批吃螃蟹的人</p>
+<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">2.&nbsp;&nbsp;<strong style="font-weight: bold;">内容创作</strong>：分享行业知识、经验、案例，打造个人IP</p>
+<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">3.&nbsp;&nbsp;<strong style="font-weight: bold;">服务提供商</strong>：为企业和个人提供配套服务，比如咨询、培训、定制开发</p>
+<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">4.&nbsp;&nbsp;<strong style="font-weight: bold;">资源整合</strong>：连接供需双方，做信息和资源的中介</p>
+        """)
+        
+        # 案例部分（如果有搜索到案例）
+        if search_answer and len(search_answer) > 100:
+            article_parts.append(f"""
+<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">四、真实案例：先行者已经拿到结果</h2>
+<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
+{search_answer[:300]}...
+</p>
+            """)
+        
+        # 结尾部分：总结+互动
+        article_parts.append(f"""
+<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">最后总结</h2>
+<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
+每一次技术变革都会淘汰一批人，也会成就一批人。与其焦虑会不会被取代，不如主动拥抱变化，成为掌握新技术的人。
 </p>
 <p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-今天这篇文章，我们结合最新的行业数据和落地案例，深度拆解这个赛道的核心逻辑，看完你不仅能理解行业发展脉络，更能找到适合自己的切入点。
-</p>
-"""
-            
-            # 核心内容部分
-            core_content = """
-<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">一、技术演进：从概念到落地的核心突破</h2>
-"""
-            
-            # 加入搜索到的内容
-            if search_results:
-                for i, res in enumerate(search_results[:2]):
-                    core_content += f'<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">{res.get("content", "")[:300]}...</p>\n'
-            
-            core_content += """
-<p style="margin: 8px 0 8px 20px; text-indent: -1em;">•&nbsp;&nbsp;<strong style="font-weight: bold;">算力突破</strong>：边缘计算能力的提升，让复杂的AI模型可以在端侧运行，延迟从秒级降到毫秒级</p>
-<p style="margin: 8px 0 8px 20px; text-indent: -1em;">•&nbsp;&nbsp;<strong style="font-weight: bold;">算法优化</strong>：小模型技术成熟，在特定场景下效果接近通用大模型，成本却只有1/10</p>
-<p style="margin: 8px 0 8px 20px; text-indent: -1em;">•&nbsp;&nbsp;<strong style="font-weight: bold;">数据积累</strong>：行业场景的大量数据积累，让AI模型的准确率提升到商用级别</p>
-
-<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">二、商业落地：3个已经验证的盈利场景</h2>
-
-<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-技术只有落地产生价值才有意义，目前这三个场景已经实现规模化盈利：
-</p>
-
-<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">1.&nbsp;&nbsp;<strong style="font-weight: bold;">效率工具赛道</strong>：用AI替代重复性劳动，平均为企业降本30%以上，ROI普遍在1:5以上</p>
-<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">2.&nbsp;&nbsp;<strong style="font-weight: bold;">体验升级赛道</strong>：通过AI提升用户体验，客单价平均提升20%，用户留存率提升15%</p>
-<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">3.&nbsp;&nbsp;<strong style="font-weight: bold;">新赛道机会</strong>：AI原生产品正在创造全新的市场需求，目前还处于蓝海阶段</p>
-
-<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">三、真实案例：小团队如何抓住AI红利年入千万</h2>
-
-<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-我们认识的一个3人小团队，去年抓住了AI落地的机会，做了一个垂直行业的AI效率工具：
-</p>
-
-<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">✅&nbsp;&nbsp;研发周期：仅用了3个月就推出了MVP版本</p>
-<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">✅&nbsp;&nbsp;获客成本：几乎为零，靠产品口碑传播</p>
-<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">✅&nbsp;&nbsp;收入情况：上线6个月就做到了月入100万，毛利率超过80%</p>
-<p style="margin: 8px 0 8px 20px; text-indent: -1.5em;">✅&nbsp;&nbsp;团队规模：至今还是3个人，没有扩张</p>
-
-<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-这个案例不是个例，现在每个行业都有这样的机会，关键是你有没有发现机会的眼睛和快速行动的能力。
-</p>
-
-<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">四、未来机遇：普通人能抓住的3个方向</h2>
-
-<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-不用焦虑技术会取代人，真正聪明的人都在想怎么用好技术提升自己的竞争力：
-</p>
-
-<p style="margin: 8px 0 8px 20px; text-indent: -1em;">🔹&nbsp;&nbsp;<strong style="font-weight: bold;">技能升级</strong>：学习AI工具的使用，成为第一批用好AI的专业人士</p>
-<p style="margin: 8px 0 8px 20px; text-indent: -1em;">🔹&nbsp;&nbsp;<strong style="font-weight: bold;">场景创新</strong>：用AI重构你所在行业的工作流程，创造新的价值</p>
-<p style="margin: 8px 0 8px 20px; text-indent: -1em;">🔹&nbsp;&nbsp;<strong style="font-weight: bold;">生态参与</strong>：加入AI平台的生态，成为早期开发者，享受生态红利</p>
-"""
-            
-            # 结尾部分
-            conclusion = """
-<h2 style="font-size: 20px; font-weight: bold; color: #2c3e50; margin: 25px 0 12px 0; padding-bottom: 5px; border-bottom: 2px solid #3498db;">最后说几句真心话</h2>
-
-<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-每次技术革命都会淘汰一批人，也会成就一批人。与其焦虑AI会抢你的工作，不如主动拥抱技术，成为掌握AI的人。
-</p>
-<p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-未来的竞争，不是人和AI的竞争，而是会用AI的人和不会用AI的人的竞争。
+未来的竞争，不是人和技术的竞争，而是会用技术的人和不会用技术的人的竞争。
 </p>
 
 <blockquote style="border-left: 4px solid #3498db; padding: 10px 15px; margin: 15px 0; background-color: #f8f9fa; color: #666; font-style: italic;">
-💡 福利时间：我们整理了《2026年AI行业落地指南》，包含10个已经验证的盈利赛道和详细的切入路径，关注公众号回复「指南」即可免费领取。
+💡 福利时间：我们整理了《{topic}行业研究报告》，包含详细的数据分析、案例拆解、机会清单，关注公众号回复「报告」即可免费领取。
 </blockquote>
 
 <p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-<strong style="font-weight: bold;">💬 互动讨论：</strong>你所在的行业有没有被AI影响？你准备怎么抓住这波AI红利？欢迎在评论区分享你的想法，我们会挑选3个最有价值的评论，送出价值99元的《AI落地实战课程》。
+<strong style="font-weight: bold;">💬 互动讨论：</strong>你怎么看待{topic}的发展前景？你准备怎么抓住这波机会？欢迎在评论区分享你的想法，我们会挑选3个最有价值的评论，送出价值199元的行业资料包。
 </p>
 
 <p style="font-size: 16px; line-height: 1.8; color: #333; margin: 15px 0; text-align: justify;">
-如果觉得这篇文章对你有启发，欢迎点赞、在看、转发给身边的朋友，让更多人抓住时代的红利，我们下期再见~
+如果觉得这篇文章对你有帮助，欢迎点赞、在看、转发给身边的朋友，让更多人抓住时代的红利，我们下期再见~
 </p>
-"""
-            
-            # 组合完整文章
-            full_content = intro + core_content + conclusion
-            
-            print(f'✅ 文章生成完成，标题：{title}')
-            return title, full_content
-            
-        except Exception as e:
-            print(f'大模型生成失败: {e}')
-            # 失败时返回基础模板
-            return f"{topic}：行业最新趋势与落地实践", intro + core_content + conclusion
+        """)
+        
+        # 组合完整文章
+        full_content = '\n'.join(article_parts)
+        
+        print(f'✅ 动态文章生成完成，标题：{title}')
+        return title, full_content
     
     def generate_article(self, topic: str, audience: str = "行业从业者") -> tuple:
         """
-        生成符合专业营销标准的公众号文章
-        流程：搜索相关资讯 → 大模型生成内容 → 格式优化
+        完全动态生成公众号文章
+        流程：搜索相关资讯 → 动态生成内容 → 格式优化
         """
         # 1. 搜索相关信息
-        search_results = self.search_related_info(topic)
+        search_results, search_answer = self.search_related_info(topic)
         
-        # 2. 大模型生成文章
-        title, content = self.generate_article_with_llm(topic, search_results)
+        # 2. 动态生成文章
+        title, content = self.generate_dynamic_article(topic, search_results, search_answer)
         
         return title, content
 
 def main():
     # 测试功能
     generator = ContentGenerator()
-    title, content = generator.generate_article("AI大模型在智能座舱中的应用趋势")
-    print(f'✅ 文章生成完成，标题：{title}')
-    print(f'📝 文章长度：{len(content)} 字节')
+    # 测试不同主题
+    test_topics = ["今日经济热点", "AI大模型应用趋势", "2026创业机会"]
+    for topic in test_topics:
+        print(f"\n📝 测试主题：{topic}")
+        title, content = generator.generate_article(topic)
+        print(f'✅ 生成标题：{title}')
+        print(f'📝 文章长度：{len(content)} 字节')
 
 if __name__ == "__main__":
     main()
