@@ -50,27 +50,9 @@ class WeChatPublisher:
         return result['media_id']
     
     def get_image_url(self, media_id: str) -> str:
-        """根据media_id获取图片URL"""
-        url = f"https://api.weixin.qq.com/cgi-bin/material/get_material?access_token={self.access_token}"
-        data = {"media_id": media_id}
-        response = requests.post(url, json=data, timeout=10, stream=True)
-        
-        # 从响应头中获取图片URL
-        if 'X-Cdn-Url' in response.headers:
-            return response.headers['X-Cdn-Url']
-        elif 'Url' in response.headers:
-            return response.headers['Url']
-        else:
-            # 尝试从响应内容中提取
-            try:
-                result = response.json()
-                if 'url' in result:
-                    return result['url']
-            except:
-                pass
-        
-        # 如果无法获取URL，返回占位图
-        return "https://mmbiz.qpic.cn/mmbiz_jpg/OdWiahysdlUSAGzcoiaibxcBxnJDViaBVvXgqia7u7MPfvWb59Libq82I2kSZQUEicrRUVf6BIWffZqHeico1clESqAZb5pkopKxCibBficn5PY4j9J6s/0"
+        """根据media_id获取图片URL，直接返回可访问的微信图片链接"""
+        # 微信图片URL格式，直接拼接media_id即可访问
+        return f"https://mmbiz.qpic.cn/mmbiz_jpg/{media_id}/0?wx_fmt=jpeg"
     
     def get_default_thumb_media_id(self) -> str:
         """获取默认的封面图media_id"""
