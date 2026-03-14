@@ -51,20 +51,79 @@ mv "$TEMP_DIR/wechat-publisher-suite" "$TARGET_DIR"
 rm -rf "$TEMP_DIR"
 echo -e "${GREEN}✅ 技能已安装到: $TARGET_DIR${NC}"
 
-# 配置提示
-echo -e "\n${YELLOW}⚙️  下一步配置${NC}"
+# 交互式配置
+echo -e "\n${YELLOW}⚙️  配置API密钥（可直接回车跳过，后续再配置）${NC}"
 echo ""
-echo "请在OpenClaw的环境变量中添加以下配置："
-echo ""
-echo "# Tavily API Key - 用于搜索热点和图片"
-echo "# 申请地址: https://tavily.com/"
-echo "export TAVILY_API_KEY=\"your-tavily-api-key\""
-echo ""
-echo "# 微信公众号配置"
-echo "# 在微信公众平台开发者后台获取：https://mp.weixin.qq.com/"
-echo "# 路径：开发 -> 基本配置 -> 开发者ID(AppID)和开发者密码(AppSecret)"
-echo "export WECHAT_APPID=\"your-wechat-appid\""
-echo "export WECHAT_APPSECRET=\"your-wechat-appsecret\""
+
+# 检查bashrc文件
+BASHRC_FILE="$HOME/.bashrc"
+if [ ! -f "$BASHRC_FILE" ]; then
+    touch "$BASHRC_FILE"
+fi
+
+# 询问是否现在配置
+echo -e "${YELLOW}🤔 是否现在配置API密钥？(Y/n)${NC}"
+read -r CONFIG_NOW
+if [[ "$CONFIG_NOW" =~ ^[Yy]$ ]] || [[ -z "$CONFIG_NOW" ]]; then
+    # 收集配置信息
+    echo ""
+    echo -e "${YELLOW}🔑 请输入 Tavily API Key (申请地址: https://tavily.com/):${NC}"
+    read -r TAVILY_API_KEY
+    
+    echo ""
+    echo -e "${YELLOW}💬 请输入微信公众号 AppID:${NC}"
+    read -r WECHAT_APPID
+    
+    echo ""
+    echo -e "${YELLOW}🔒 请输入微信公众号 AppSecret:${NC}"
+    read -r WECHAT_APPSECRET
+    
+    # 写入配置到bashrc
+    echo ""
+    echo -e "${YELLOW}📝 正在写入配置到 ~/.bashrc...${NC}"
+    
+    # 移除旧配置
+    sed -i '/# 微信公众号发布技能配置/d' "$BASHRC_FILE"
+    sed -i '/export TAVILY_API_KEY=/d' "$BASHRC_FILE"
+    sed -i '/export WECHAT_APPID=/d' "$BASHRC_FILE"
+    sed -i '/export WECHAT_APPSECRET=/d' "$BASHRC_FILE"
+    
+    # 添加新配置
+    if [ -n "$TAVILY_API_KEY" ]; then
+        echo "" >> "$BASHRC_FILE"
+        echo "# 微信公众号发布技能配置" >> "$BASHRC_FILE"
+        echo "export TAVILY_API_KEY=\"$TAVILY_API_KEY\"" >> "$BASHRC_FILE"
+        if [ -n "$WECHAT_APPID" ]; then
+            echo "export WECHAT_APPID=\"$WECHAT_APPID\"" >> "$BASHRC_FILE"
+        fi
+        if [ -n "$WECHAT_APPSECRET" ]; then
+            echo "export WECHAT_APPSECRET=\"$WECHAT_APPSECRET\"" >> "$BASHRC_FILE"
+        fi
+        echo -e "${GREEN}✅ 配置已保存到 ~/.bashrc${NC}"
+        echo ""
+        echo -e "${YELLOW}💡 请运行以下命令使配置生效：${NC}"
+        echo "   source ~/.bashrc"
+    else
+        echo -e "${YELLOW}⚠️  未输入Tavily API Key，已跳过配置写入${NC}"
+    fi
+else
+    # 显示手动配置说明
+    echo ""
+    echo -e "${YELLOW}📝 手动配置方法：${NC}"
+    echo ""
+    echo "请在 ~/.bashrc 文件中添加以下配置："
+    echo ""
+    echo "# 微信公众号发布技能配置"
+    echo "# Tavily API Key - 用于搜索热点和图片，申请地址: https://tavily.com/"
+    echo "export TAVILY_API_KEY=\"your-tavily-api-key\""
+    echo ""
+    echo "# 微信公众号配置（在微信公众平台开发者后台获取）"
+    echo "export WECHAT_APPID=\"your-wechat-appid\""
+    echo "export WECHAT_APPSECRET=\"your-wechat-appsecret\""
+    echo ""
+    echo "配置完成后运行：source ~/.bashrc"
+fi
+
 echo ""
 echo -e "${YELLOW}⚠️  重要提示：必须在微信公众平台后台配置IP白名单${NC}"
 echo "   路径：开发 -> 基本配置 -> IP白名单，添加运行OpenClaw的服务器公网IP"
