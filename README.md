@@ -21,6 +21,71 @@
    ![AppID和AppSecret位置](./assets/wechat-app-id-secret.jpg)
 4. **配置IP白名单**：在同一个页面，将运行OpenClaw的服务器公网IP添加到IP白名单中
 5. **开通接口权限**：确保公众号拥有素材管理、草稿箱管理等接口权限
+6. **申请Tavily API Key**：访问 https://tavily.com/ 申请API密钥，用于内容生成和图片搜索
+
+### 1. 安装技能
+#### 方式一：一键安装（推荐）
+```bash
+# 直接运行此命令即可完成安装
+bash <(curl -fsSL https://raw.githubusercontent.com/Ray-Toss/wechat-publisher-suite/main/install.sh)
+```
+
+#### 方式二：手动安装
+```bash
+# 克隆仓库
+git clone https://github.com/Ray-Toss/wechat-publisher-suite.git
+
+# 移动到OpenClaw技能目录
+mv wechat-publisher-suite ~/.openclaw/workspace/skills/
+```
+
+### 2. 配置环境变量
+在OpenClaw的环境变量中添加以下配置：
+```bash
+# Tavily API Key - 用于搜索热点和图片
+# 申请地址: https://tavily.com/
+export TAVILY_API_KEY="your-tavily-api-key"
+
+# 微信公众号配置（刚才在公众号后台获取的）
+export WECHAT_APPID="你的公众号AppID"
+export WECHAT_APPSECRET="你的公众号AppSecret"
+```
+
+配置完成后重启OpenClaw服务：
+```bash
+openclaw gateway restart
+```
+
+## 🎯 使用方式
+
+### 方式一：对话式操作（推荐）
+**只需要和OpenClaw对话即可**：
+```
+"帮我写一篇关于智能座舱大模型应用的公众号文章"
+"生成一篇关于AI大模型最新进展的技术文章，发布到公众号"
+"找一下本周的科技热点，写一篇公众号文章"
+"帮我把这篇Markdown文章发布到公众号草稿箱"
+```
+
+### 方式二：命令行发布
+```bash
+cd ~/.openclaw/workspace/skills/wechat-publisher-suite
+python publish_article.py "文章主题"
+```
+
+示例：
+```bash
+python publish_article.py "OpenClaw技能开发最佳实践"
+```
+
+技能会自动完成所有流程：
+1. 搜索相关资讯和案例
+2. 生成符合公众号风格的专业文章（符合60/30/10内容原则）
+3. 自动排版优化，适配手机阅读
+4. 搜索并配图，自动上传到微信素材库
+5. 格式转换为微信兼容的HTML
+6. 发布到公众号草稿箱
+7. 返回预览链接给你审核
 
 ### 1. 安装技能
 #### 方式一：一键安装（推荐）
