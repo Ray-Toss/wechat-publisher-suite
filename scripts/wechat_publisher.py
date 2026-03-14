@@ -29,8 +29,8 @@ class WeChatPublisher:
             raise Exception(f'获取access_token失败: {result}')
         return result['access_token']
     
-    def upload_image(self, image_path: str, is_permanent: bool = True) -> str:
-        """上传图片到微信素材库，返回media_id"""
+    def upload_image(self, image_path: str, is_permanent: bool = True) -> tuple:
+        """上传图片到微信素材库，返回(media_id, image_url)"""
         if is_permanent:
             # 上传永久素材
             url = f'https://api.weixin.qq.com/cgi-bin/material/add_material?access_token={self.access_token}&type=image'
@@ -47,12 +47,16 @@ class WeChatPublisher:
         result = response.json()
         if 'media_id' not in result:
             raise Exception(f'上传图片失败: {result}')
-        return result['media_id']
-    
-    def get_image_url(self, media_id: str) -> str:
-        """根据media_id获取图片URL，直接返回可访问的微信图片链接"""
-        # 微信图片URL格式，直接拼接media_id即可访问
-        return f"https://mmbiz.qpic.cn/mmbiz_jpg/{media_id}/0?wx_fmt=jpeg"
+        
+        # 直接返回微信提供的图片URL
+        media_id = result['media_id']
+        image_url = result.get('url', f"https://mmbiz.qpic.cn/mmbiz_jpg/{media_id}/0?wx_fmt=jpeg")
+        
+        # 确保URL是HTTPS
+        if image_url.startswith('http://'):
+            image_url = 'https://' + image_url[7:]
+            
+        return media_id, image_url
     
     def get_default_thumb_media_id(self) -> str:
         """获取默认的封面图media_id"""
@@ -140,9 +144,9 @@ class WeChatPublisher:
             for i, img_path in enumerate(image_paths[:3]):
                 if i < len(insert_positions) and insert_positions[i] < len(html_lines):
                     try:
-                        # 上传图片到微信素材库
-                        media_id = self.upload_image(img_path)
-                        img_url = self.get_image_url(media_id)
+                        # 上传图片到微信素材库，直接获取URL
+                        media_id, img_url = self.upload_image(img_path)
+                        print(f'✅ 图片上传成功，URL: {img_url[:100]}...')
                         # 插入图片
                         image_html = f'''<p style="text-align: center; margin: 25px 0;">
 <img src="{img_url}" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
