@@ -51,54 +51,113 @@ class ImageProcessor:
             print(f'调用文生图失败: {e}')
             return None
     
+    def search_images_from_tavily(self, topic: str, count: int = 3) -> List[str]:
+        """从Tavily搜索相关图片"""
+        try:
+            print(f'🔍 正在搜索"{topic}"相关图片...')
+            url = "https://api.tavily.com/search"
+            headers = {
+                "Content-Type": "application/json"
+            }
+            data = {
+                "api_key": self.tavily_api_key,
+                "query": topic,
+                "search_depth": "basic",
+                "include_images": True,
+                "max_results": 5
+            }
+            
+            response = requests.post(url, json=data, headers=headers, timeout=30)
+            if response.status_code == 200:
+                result = response.json()
+                images = result.get("images", [])
+                if images:
+                    # 筛选有效的图片URL
+                    valid_images = []
+                    for img in images:
+                        if img.startswith("http") and (img.endswith(".jpg") or img.endswith(".jpeg") or img.endswith(".png") or img.endswith(".webp")):
+                            valid_images.append(img)
+                            if len(valid_images) >= count:
+                                break
+                    
+                    if valid_images:
+                        print(f'✅ 从Tavily找到{len(valid_images)}张相关图片')
+                        return valid_images
+            
+            print(f'❌ Tavily图片搜索失败，状态码：{response.status_code}')
+            return []
+        except Exception as e:
+            print(f'Tavily图片搜索失败: {e}')
+            return []
+    
     def generate_article_images(self, topic: str, count: int = 3) -> List[str]:
-        """为文章生成相关配图"""
-        # 根据主题生成不同的配图prompt
-        prompts = []
+        """为文章生成相关配图：优先从Tavily搜索，失败再用文生图，确保至少有3张图"""
+        # 第一步：从Tavily搜索相关图片
+        image_urls = self.search_images_from_tavily(topic, count=count)
         
-        # 智能生成配图prompt
-        if "智能座舱" in topic or "汽车" in topic:
-            prompts = [
-                "未来感智能座舱设计，科技感，车内大屏，AI交互界面，8K高清，写实风格",
-                "AI大模型在汽车中的应用概念图，蓝色科技风格，数据流动，神经网络可视化",
-                "人车交互场景，驾驶员使用智能语音助手，现代化汽车内饰，高级感"
-            ]
-        elif "大模型" in topic or "AI" in topic:
-            prompts = [
-                "AI大模型技术概念图，神经网络可视化，数据流动，蓝色科技风格，未来感",
-                "人工智能技术应用场景，商务插画风格，现代化办公场景，科技感",
-                "AI技术赋能千行百业概念图，多个行业场景融合，抽象艺术风格"
-            ]
-        elif "OpenClaw" in topic or "Agent" in topic:
-            prompts = [
-                "AI Agent开发概念图，代码编程界面，科技感背景，蓝色调，未来感",
-                "智能助手工作原理示意图，多模块协作，数据流可视化，科技风格",
-                "程序员开发AI应用场景，现代化办公环境，代码在屏幕上流动"
-            ]
-        else:
-            prompts = [
-                f"{topic} 概念图，科技风格，高清，专业",
-                f"{topic} 应用场景插画，商务风格，清晰美观",
-                f"{topic} 技术架构图，抽象设计，科技感"
-            ]
+        # 第二步：如果Tavily搜索不足，用文生图补充
+        if len(image_urls) < count:
+            print(f'⚠️  Tavily只找到{len(image_urls)}张图片，尝试文生图补充')
+            # 根据主题生成不同的配图prompt
+            prompts = []
+            
+            # 智能生成配图prompt
+            if "智能座舱" in topic or "汽车" in topic:
+                prompts = [
+                    "未来感智能座舱设计，科技感，车内大屏，AI交互界面，8K高清，写实风格",
+                    "AI大模型在汽车中的应用概念图，蓝色科技风格，数据流动，神经网络可视化",
+                    "人车交互场景，驾驶员使用智能语音助手，现代化汽车内饰，高级感"
+                ]
+            elif "大模型" in topic or "AI" in topic:
+                prompts = [
+                    "AI大模型技术概念图，神经网络可视化，数据流动，蓝色科技风格，未来感",
+                    "人工智能技术应用场景，商务插画风格，现代化办公场景，科技感",
+                    "AI技术赋能千行百业概念图，多个行业场景融合，抽象艺术风格"
+                ]
+            elif "OpenClaw" in topic or "Agent" in topic:
+                prompts = [
+                    "AI Agent开发概念图，代码编程界面，科技感背景，蓝色调，未来感",
+                    "智能助手工作原理示意图，多模块协作，数据流可视化，科技风格",
+                    "程序员开发AI应用场景，现代化办公环境，代码在屏幕上流动"
+                ]
+            elif "伊朗" in topic or "时政" in topic or "局势" in topic:
+                prompts = [
+                    "中东地图 伊朗 政治局势 新闻风格 高清写实",
+                    "国际政治谈判场景 严肃正式 新闻报道风格",
+                    "石油能源 中东经济 抽象概念图 商务风格"
+                ]
+            else:
+                prompts = [
+                    f"{topic} 概念图，高清，专业，新闻风格",
+                    f"{topic} 应用场景插画，清晰美观",
+                    f"{topic} 相关配图，真实感强"
+                ]
+            
+            # 生成缺失的图片
+            needed = count - len(image_urls)
+            for prompt in prompts[:needed]:
+                img_url = self.generate_image(prompt)
+                if img_url:
+                    image_urls.append(img_url)
         
-        # 生成图片
-        image_urls = []
-        for prompt in prompts[:count]:
-            img_url = self.generate_image(prompt)
-            if img_url:
+        # 第三步：如果还是不足，使用高质量免费图库补充，确保至少有3张
+        if len(image_urls) < count:
+            print(f'⚠️  文生图也不足，使用免费图库补充，还需要{count - len(image_urls)}张')
+            # 使用Unsplash Source的高质量图片，根据主题关键词搜索
+            keywords = topic.replace(" ", "+")
+            for i in range(count - len(image_urls)):
+                # 不同主题使用不同的分类
+                if "时政" in topic or "局势" in topic:
+                    img_url = f"https://source.unsplash.com/800x450/?news,politics,world"
+                elif "科技" in topic or "AI" in topic:
+                    img_url = f"https://source.unsplash.com/800x450/?technology,ai,computer"
+                elif "经济" in topic or "金融" in topic:
+                    img_url = f"https://source.unsplash.com/800x450/?business,economy,finance"
+                else:
+                    img_url = f"https://source.unsplash.com/800x450/?{keywords}"
                 image_urls.append(img_url)
         
-        # 如果生成失败，使用备用图片
-        if not image_urls:
-            print('⚠️  文生图失败，使用默认配图')
-            return [
-                "https://picsum.photos/800/450?random=1",
-                "https://picsum.photos/800/450?random=2",
-                "https://picsum.photos/800/450?random=3"
-            ]
-        
-        print(f'✅ 成功生成{len(image_urls)}张配图')
+        print(f'✅ 最终获取到{len(image_urls)}张配图，满足文章需求')
         return image_urls
     
     def download_image(self, image_url: str, save_path: str = "/tmp") -> str:
@@ -144,53 +203,19 @@ class ImageProcessor:
             return "https://picsum.photos/800/450?random=" + str(random.randint(1000, 9999))
     
     def insert_images_into_article(self, content: str, topic: str) -> str:
-        """智能插入图片到文章合适位置"""
+        """智能插入图片到文章合适位置，直接返回图片URL列表，由publisher处理上传"""
         # 生成相关配图
         print(f'🖼️  正在为文章生成配图...')
         image_urls = self.generate_article_images(topic, count=3)
         
         if not image_urls:
             print('⚠️  未获取到图片，跳过配图')
-            return content
+            return content, []
         
-        # 按段落分割内容
-        paragraphs = re.findall(r'<p.*?>.*?</p>|<h2.*?>.*?</h2>|<pre.*?>.*?</pre>|<blockquote.*?>.*?</blockquote>', content, re.DOTALL)
-        if not paragraphs:
-            paragraphs = content.split('\n')
-        
-        new_content = []
-        image_count = 0
-        para_count = 0
-        
-        for para in paragraphs:
-            new_content.append(para)
-            para_count += 1
-            
-            # 每3个段落插入一张图片，最多插入3张
-            if para_count % 3 == 0 and image_count < min(3, len(image_urls)):
-                try:
-                    print(f'🖼️  正在处理第{image_count + 1}张配图...')
-                    # 下载并上传图片
-                    local_path = self.download_image(image_urls[image_count])
-                    if local_path:
-                        wechat_url = self.upload_to_wechat(local_path)
-                        if wechat_url:
-                            # 插入图片
-                            image_html = f'''<p style="text-align: center; margin: 25px 0;">
-<img src="{wechat_url}" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-</p>'''
-                            new_content.append(image_html)
-                            image_count += 1
-                            print(f'✅ 已插入第{image_count}张配图')
-                        
-                        # 删除本地文件
-                        os.remove(local_path)
-                except Exception as e:
-                    print(f'插入图片失败: {e}')
-                    continue
-        
-        print(f'✅ 配图处理完成，共插入{image_count}张图片')
-        return ''.join(new_content)
+        # 过滤有效的HTTP图片URL
+        valid_urls = [url for url in image_urls if url.startswith('http')]
+        print(f'✅ 配图处理完成，共获取到{len(valid_urls)}张有效图片')
+        return content, valid_urls
 
 def main():
     # 测试功能
